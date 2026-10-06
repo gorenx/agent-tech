@@ -62,8 +62,10 @@ LLM_DEBUG=1 go run ./01-chat-basic
 | 04 | `04-responses-stream` | 流式：事件序列 |
 | 05 | `05-chat-multiturn` | 多轮：客户端维护状态 |
 | 06 | `06-responses-multiturn` | 多轮：两种接续方式 |
+| 07 | `07-chat-parse` | 读取结构化输出 |
+| 08 | `08-responses-parse` | 读取结构化输出 |
 
-六节都能运行。默认端点 DeepSeek 同时提供 `/chat/completions` 和 `/responses`。
+八节都能运行。默认端点 DeepSeek 同时提供 `/chat/completions` 和 `/responses`。
 
 ## 关于「兼容 OpenAI」
 
@@ -79,6 +81,19 @@ LLM_DEBUG=1 go run ./01-chat-basic
 | 内建工具（`web_search` / `file_search` / `code_interpreter`） | 忽略 |
 
 DeepSeek 文档说明：不支持的参数会被静默忽略，不返回错误。
+
+输出格式的约束能力两边也不同：
+
+| | Chat Completions | Responses |
+|---|---|---|
+| `json_object` | 支持 | — |
+| `json_schema` | **不支持**，返回 400 | 支持（`text.format`） |
+
+Chat Completions 带 `json_schema` 请求的实际返回：
+
+```json
+{"error": {"message": "This response_format type is unavailable now", "type": "invalid_request_error"}}
+```
 
 所以下面两种判断方式不可靠：
 
@@ -207,6 +222,31 @@ output[0].type = message
 [事件] content_part.added  part.type=output_text
 ```
 
+两种 API 判断「这次返回的是什么」的方式不同。
+
+Chat Completions 把不同种类的结果放在 `message` 的几个固定字段上：
+
+| 字段 | 内容 |
+|---|---|
+| `content` | 模型输出的文本 |
+| `refusal` | 拒答说明 |
+| `tool_calls` | 工具调用 |
+
+协议没有标注本次是哪一种，需要逐个检查哪个非空。`content` 是不透明字符串，
+即使约定了 JSON schema，拿到手的仍是一段文本，要自己 `json.Unmarshal`。
+
+Responses 把所有结果放进 `output` 一个列表，每项带 `type`：
+
+| `item.type` | 内容 |
+|---|---|
+| `message` | 模型输出的消息；其 `content[]` 再分 `output_text` / `refusal` |
+| `reasoning` | 推理内容 |
+| `function_call` | 工具调用 |
+
+按 `item.type` 分发即可。
+
+两种 API 的文本都是 JSON 字符串——schema 约束的是模型的生成过程，不改变它在协议里的形态。07 和 08 节做同一件事，可以对照。
+
 ### 3. 多轮对话
 
 Responses 有两种接续方式：
@@ -288,5 +328,7 @@ llmcall/
 ├── 03-chat-stream/
 ├── 04-responses-stream/
 ├── 05-chat-multiturn/
-└── 06-responses-multiturn/
+├── 06-responses-multiturn/
+├── 07-chat-parse/
+└── 08-responses-parse/
 ```
