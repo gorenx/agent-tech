@@ -177,8 +177,34 @@ responses.ResponseNewParams{
 ### 2. 读取响应
 
 ```go
-chatResp.Choices[0].Message.Content   // 从 choices 数组取
-resp.OutputText()                     // SDK 遍历 output 数组拼接
+// Chat Completions：3 层
+chatResp.Choices[0].Message.Content
+
+// Responses：4 层
+resp.Output[0].AsMessage().Content[0].AsOutputText().Text
+
+// OutputText() 是上面这条路径的封装：
+// 遍历 output 数组，取出所有 output_text 片段并拼接。
+resp.OutputText()
+```
+
+`output` 数组里可以放多种类型的 item，不只是文本。02 节把这些层级逐层打印出来：
+
+```
+output[0].type = message
+  id     = msg_...
+  role   = assistant
+  status = completed
+  content[0].type = output_text
+  content[0].text = HTTP 是...
+```
+
+04 节的流式版本会打印构建过程对应的事件：
+
+```
+[事件] response.created
+[事件] output_item.added   output_index=0 item.type=message
+[事件] content_part.added  part.type=output_text
 ```
 
 ### 3. 多轮对话

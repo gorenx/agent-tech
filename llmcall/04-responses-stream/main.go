@@ -54,13 +54,24 @@ func main() {
 			time.Sleep(chunkDelay)
 
 		case "response.created":
-			fmt.Fprintf(os.Stderr, "[事件] 响应已创建\n")
+			fmt.Fprintf(os.Stderr, "[事件] response.created\n")
+
+		case "response.output_item.added":
+			// 一个新的输出项开始构建。
+			// item.type 就是 02 节 output 数组里那个 type。
+			// Chat Completions 的流里没有对应事件。
+			fmt.Fprintf(os.Stderr, "[事件] output_item.added   output_index=%d item.type=%s\n",
+				event.OutputIndex, event.Item.Type)
+
+		case "response.content_part.added":
+			// 输出项里的一个片段开始。文本片段是 output_text。
+			fmt.Fprintf(os.Stderr, "[事件] content_part.added  part.type=%s\n", event.Part.Type)
 
 		case "response.completed":
 			// 完结事件里带完整的 Response 对象，类型和 02 节非流式调用返回的相同。
 			resp := event.Response
 			final = &resp
-			fmt.Fprintf(os.Stderr, "\n[事件] 完成，id=%s，输入 %d / 输出 %d tokens\n",
+			fmt.Fprintf(os.Stderr, "[事件] response.completed  id=%s 输入 %d / 输出 %d tokens\n",
 				resp.ID, resp.Usage.InputTokens, resp.Usage.OutputTokens)
 		}
 	}
